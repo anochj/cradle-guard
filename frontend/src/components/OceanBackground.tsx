@@ -7,16 +7,39 @@ export default function OceanBackground() {
     const container = ref.current
     if (!container) return
     container.innerHTML = ''
-    for (let i = 0; i < 18; i++) {
+
+    // Scatter bubbles mostly around the outer edges to avoid central content
+    for (let i = 0; i < 26; i++) {
       const b = document.createElement('div')
       const size = Math.random() * 22 + 5
-      const dur = Math.random() * 14 + 8
-      const delay = Math.random() * 12
+      // Prefer top/bottom and side margins instead of center
+      const region = Math.random()
+      let top: number
+      let left: number
+
+      if (region < 0.35) {
+        // Top band
+        top = Math.random() * 14
+        left = Math.random() * 100
+      } else if (region < 0.7) {
+        // Bottom band
+        top = 86 + Math.random() * 12
+        left = Math.random() * 100
+      } else if (region < 0.85) {
+        // Left side band
+        top = 18 + Math.random() * 64
+        left = Math.random() * 10
+      } else {
+        // Right side band
+        top = 18 + Math.random() * 64
+        left = 90 + Math.random() * 10
+      }
+
       b.style.cssText = `
         position:absolute;width:${size}px;height:${size}px;border-radius:50%;
-        background:rgba(255,255,255,0.65);border:1px solid rgba(255,255,255,0.9);
-        left:${Math.random() * 100}%;
-        animation:floatUp ${dur}s linear ${delay}s infinite;
+        background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.45);
+        left:${left}%;
+        top:${top}%;
       `
       container.appendChild(b)
     }
@@ -34,7 +57,7 @@ export default function OceanBackground() {
       <div ref={ref} className="fixed inset-0 z-0 pointer-events-none" />
       <svg className="fixed bottom-0 left-0 z-0 pointer-events-none opacity-[0.12] animate-waveMove"
         style={{ width: '200%', height: '130px' }} viewBox="0 0 1440 130" preserveAspectRatio="none">
-        <path d="M0,65 C180,15 360,115 540,65 C720,15 900,115 1080,65 C1260,15 1350,85 1440,65 L1440,130 L0,130 Z" fill="#6C99BF" />
+        <path d="M0,65 C180,15 360,115 540,65 C720,15 900,115 1080,65 C1260,15 1350,85 1440,65 L1440,130 L0,130 Z" fill="#c4e4ff" />
       </svg>
       <svg className="fixed bottom-0 left-0 z-0 pointer-events-none opacity-[0.09] animate-waveMoveSlow"
         style={{ width: '200%', height: '110px' }} viewBox="0 0 1440 110" preserveAspectRatio="none">

@@ -30,10 +30,10 @@ export default function Home() {
   const navigate = useNavigate()
 
   return (
-    <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-8 pb-20">
+    <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-8 pb-40">
       {/* Logo */}
       <motion.div
-        className="text-center mb-20"
+        className="text-center mb-16"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1 }}
@@ -81,10 +81,13 @@ export default function Home() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                <div style={{
-                  height: '1px',
-                  background: 'linear-gradient(90deg, rgba(100,170,210,0.12), rgba(100,170,210,0.3), rgba(100,170,210,0.12))'
-                }} />
+                <div
+                  style={{
+                    height: '1px',
+                    background:
+                      'linear-gradient(90deg, rgba(100,170,210,0.12), rgba(100,170,210,0.3), rgba(100,170,210,0.12))',
+                  }}
+                />
               </motion.div>
             )}
           </>
