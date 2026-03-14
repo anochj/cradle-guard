@@ -18,14 +18,15 @@ interface AppContextType {
   eventLog: EventLog[]
   addEvent: (msg: string, sev: EventLog['severity']) => void
   clearEvents: () => void
+  warningModalOpen: boolean
+  setWarningModalOpen: (v: boolean) => void
 }
 
 const defaultAlert: AlertSettings = {
   methods: [],
-  email: '',
-  phone: '',
   soundVolume: 70,
   sensitivity: 'medium',
+  soundDelivery: 'both',
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -37,6 +38,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [alertSettings, setAlertSettings] = useState<AlertSettings>(defaultAlert)
   const [isMonitoring, setIsMonitoring] = useState(false)
   const [eventLog, setEventLog] = useState<EventLog[]>([])
+  const [warningModalOpen, setWarningModalOpen] = useState(false)
 
   const toggleAction = (id: string) =>
     setActions(prev => prev.map(a => a.id === id ? { ...a, enabled: !a.enabled } : a))
@@ -68,6 +70,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       alertSettings, updateAlertSettings,
       isMonitoring, setIsMonitoring,
       eventLog, addEvent, clearEvents,
+      warningModalOpen, setWarningModalOpen,
     }}>
       {children}
     </AppContext.Provider>

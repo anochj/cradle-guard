@@ -1,16 +1,14 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { Smartphone, Volume2, Mail, MessageSquare, ArrowRight, Shield } from 'lucide-react'
+import { Globe2, Volume2, ArrowRight, Shield } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useApp } from '../context/AppContext'
 import type { AlertMethod } from '../types'
 
 const METHODS: { value: AlertMethod; label: string; desc: string; Icon: React.ElementType }[] = [
-  { value: 'push',  label: 'Push Notification', desc: 'Browser alert on your phone',   Icon: Smartphone },
-  { value: 'sound', label: 'Sound Alarm',        desc: 'Audio alert through speakers',  Icon: Volume2 },
-  { value: 'email', label: 'Email Alert',         desc: 'Send email to your address',    Icon: Mail },
-  { value: 'sms',   label: 'SMS / Text',          desc: 'Text message to your phone',   Icon: MessageSquare },
+  { value: 'website', label: 'Website Notification', desc: 'Notification in this browser tab', Icon: Globe2 },
+  { value: 'sound',   label: 'Sound Alarm',         desc: 'Audio alert through speakers',     Icon: Volume2 },
 ]
 
 export default function Alerts() {
@@ -36,7 +34,7 @@ export default function Alerts() {
       return
     }
     // Request browser notification permission if needed
-    if (alertSettings.methods.includes('push') && 'Notification' in window) {
+    if (alertSettings.methods.includes('website') && 'Notification' in window) {
       await Notification.requestPermission()
     }
     setIsMonitoring(true)
@@ -92,34 +90,6 @@ export default function Alerts() {
             </div>
           </motion.div>
 
-          {/* Contact details */}
-          {(alertSettings.methods.includes('email') || alertSettings.methods.includes('sms')) && (
-            <motion.div
-              className="glass-card p-5"
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            >
-              <h3 className="text-ocean-100 text-sm font-medium mb-4 tracking-wide">Contact Details</h3>
-              <div className="flex flex-col gap-3">
-                {alertSettings.methods.includes('email') && (
-                  <div>
-                    <label className="text-xs text-ocean-300 opacity-55 mb-1.5 block">Email address</label>
-                    <input className="input-ocean" type="email" placeholder="you@example.com"
-                      value={alertSettings.email}
-                      onChange={e => updateAlertSettings({ email: e.target.value })} />
-                  </div>
-                )}
-                {alertSettings.methods.includes('sms') && (
-                  <div>
-                    <label className="text-xs text-ocean-300 opacity-55 mb-1.5 block">Phone number</label>
-                    <input className="input-ocean" type="tel" placeholder="+1 (555) 000-0000"
-                      value={alertSettings.phone}
-                      onChange={e => updateAlertSettings({ phone: e.target.value })} />
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
           {/* Sound volume */}
           {alertSettings.methods.includes('sound') && (
             <motion.div
@@ -137,41 +107,46 @@ export default function Alerts() {
             </motion.div>
           )}
 
-          {/* Sensitivity */}
+          {/* Sound notification: both, website only, or speaker only */}
           <motion.div
             className="glass-card p-5"
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           >
-            <h3 className="text-ocean-100 text-sm font-medium mb-4 tracking-wide">Detection Sensitivity</h3>
-            <div className="flex gap-3">
-              {(['low', 'medium', 'high'] as const).map(level => (
+            <h3 className="text-ocean-100 text-sm font-medium mb-4 tracking-wide">Sound notification</h3>
+            <p className="text-xs text-ocean-300 opacity-70 mb-3 leading-relaxed">
+              Choose whether to hear the alarm on both website and speaker, or just one.
+            </p>
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  { value: 'both' as const, label: 'Both', desc: 'Website notification + speaker alarm' },
+                  { value: 'website' as const, label: 'Website only', desc: 'Notification in this tab only' },
+                  { value: 'speaker' as const, label: 'Speaker only', desc: 'Audio through speakers only' },
+                ]
+              ).map(({ value, label, desc }) => (
                 <button
-                  key={level}
-                  onClick={() => updateAlertSettings({ sensitivity: level })}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium capitalize transition-all duration-200"
+                  key={value}
+                  onClick={() => updateAlertSettings({ soundDelivery: value })}
+                  className="flex flex-col items-start gap-0.5 p-3 rounded-xl text-left transition-all duration-200 w-full"
                   style={{
                     background:
-                      alertSettings.sensitivity === level
+                      alertSettings.soundDelivery === value
                         ? 'linear-gradient(135deg, rgba(59,130,246,0.35), rgba(56,189,248,0.35))'
                         : 'rgba(59,130,246,0.08)',
                     border: `1px solid ${
-                      alertSettings.sensitivity === level
+                      alertSettings.soundDelivery === value
                         ? 'rgba(129,140,248,0.6)'
                         : 'rgba(129,140,248,0.35)'
                     }`,
                     color:
-                      alertSettings.sensitivity === level ? '#1e293b' : 'rgba(30,64,175,0.75)',
+                      alertSettings.soundDelivery === value ? '#1e293b' : 'rgba(30,64,175,0.75)',
                   }}
                 >
-                  {level}
+                  <span className="text-sm font-medium">{label}</span>
+                  <span className="text-xs opacity-70">{desc}</span>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-ocean-300 opacity-40 mt-3 leading-relaxed">
-              {alertSettings.sensitivity === 'low' && 'Only alerts on clearly present, definite dangers.'}
-              {alertSettings.sensitivity === 'medium' && 'Balanced — alerts when danger seems likely.'}
-              {alertSettings.sensitivity === 'high' && 'Alerts on any possible risk, including minor ones.'}
-            </p>
           </motion.div>
 
           {/* Activate button */}

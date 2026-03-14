@@ -55,10 +55,15 @@ export default function Monitor() {
       setCurrentAlerts(triggered)
 
       if (!clear && triggered.length > 0) {
+        const soundDelivery = alertSettings.soundDelivery ?? 'both'
         triggered.forEach(t => {
           addEvent(t, 'danger')
-          if (alertSettings.methods.includes('sound')) playAlarm(alertSettings.soundVolume)
-          if (alertSettings.methods.includes('push')) sendPushNotification(t)
+          if (alertSettings.methods.includes('sound') && (soundDelivery === 'both' || soundDelivery === 'speaker')) {
+            playAlarm(alertSettings.soundVolume)
+          }
+          if (alertSettings.methods.includes('website') && (soundDelivery === 'both' || soundDelivery === 'website')) {
+            sendPushNotification(t)
+          }
         })
       } else {
         addEvent('Frame checked — all clear', 'info')
@@ -170,7 +175,7 @@ export default function Monitor() {
                 <div key={m} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs"
                   style={{ background: 'rgba(26,84,128,0.2)', border: '1px solid rgba(74,159,197,0.2)', color: 'rgba(128,196,220,0.7)' }}>
                   {m === 'sound' && <Volume2 size={11} />}
-                  {m === 'push' && <Eye size={11} />}
+                  {m === 'website' && <Eye size={11} />}
                   <span className="capitalize">{m}</span>
                 </div>
               ))}
