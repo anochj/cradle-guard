@@ -20,6 +20,8 @@ interface AppContextType {
   clearEvents: () => void
   warningModalOpen: boolean
   setWarningModalOpen: (v: boolean) => void
+  lastWarningReason: string | null
+  setLastWarningReason: (v: string | null) => void
 }
 
 const defaultAlert: AlertSettings = {
@@ -39,6 +41,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isMonitoring, setIsMonitoring] = useState(false)
   const [eventLog, setEventLog] = useState<EventLog[]>([])
   const [warningModalOpen, setWarningModalOpen] = useState(false)
+  const [lastWarningReason, setLastWarningReason] = useState<string | null>(null)
 
   const toggleAction = (id: string) =>
     setActions(prev => prev.map(a => a.id === id ? { ...a, enabled: !a.enabled } : a))
@@ -71,6 +74,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isMonitoring, setIsMonitoring,
       eventLog, addEvent, clearEvents,
       warningModalOpen, setWarningModalOpen,
+      lastWarningReason, setLastWarningReason,
     }}>
       {children}
     </AppContext.Provider>

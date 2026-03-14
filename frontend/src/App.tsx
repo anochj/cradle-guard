@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { AppProvider, useApp } from './context/AppContext'
 import OceanBackground from './components/OceanBackground'
 import CameraModal from './components/CameraModal'
+import DangerWarningModal from './components/DangerWarningModal'
+import { useBackendAlerts } from './hooks/useBackendAlerts'
 import Home from './pages/Home'
 import Setup from './pages/Setup'
 import Actions from './pages/Actions'
@@ -68,6 +70,17 @@ function CameraFab() {
   )
 }
 
+function AlertLayer() {
+  useBackendAlerts()
+  const { warningModalOpen, setWarningModalOpen } = useApp()
+  return (
+    <DangerWarningModal
+      open={warningModalOpen}
+      onClose={() => setWarningModalOpen(false)}
+    />
+  )
+}
+
 export default function App() {
   const location = useLocation()
 
@@ -84,6 +97,7 @@ export default function App() {
           <Route path="*"        element={<Navigate to="/" replace />} />
         </Routes>
         {location.pathname === '/' && <CameraFab />}
+        <AlertLayer />
       </div>
     </AppProvider>
   )

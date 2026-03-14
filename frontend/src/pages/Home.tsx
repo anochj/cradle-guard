@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Camera, AlertTriangle, Bell, TestTube } from 'lucide-react'
-import DangerWarningModal from '../components/DangerWarningModal'
 import { useApp } from '../context/AppContext'
 
 const STEPS = [
@@ -30,7 +29,7 @@ const STEPS = [
 
 export default function Home() {
   const navigate = useNavigate()
-  const { warningModalOpen, setWarningModalOpen } = useApp()
+  const { setWarningModalOpen, setLastWarningReason } = useApp()
 
   return (
     <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-8 pb-40">
@@ -98,7 +97,7 @@ export default function Home() {
 
       {/* Test warning button — bottom right, above Live Feed */}
       <motion.button
-        onClick={() => setWarningModalOpen(true)}
+        onClick={() => { setLastWarningReason(null); setWarningModalOpen(true) }}
         className="fixed bottom-28 right-6 z-30 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
         initial={{ opacity: 0, x: 8 }}
         animate={{ opacity: 1, x: 0 }}
@@ -119,7 +118,6 @@ export default function Home() {
         Test warning
       </motion.button>
 
-      <DangerWarningModal open={warningModalOpen} onClose={() => setWarningModalOpen(false)} />
     </div>
   )
 }

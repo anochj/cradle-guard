@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, X } from 'lucide-react'
+import { useApp } from '../context/AppContext'
 
 interface Props {
   open: boolean
@@ -8,11 +9,19 @@ interface Props {
 }
 
 export default function DangerWarningModal({ open, onClose }: Props) {
+  const { lastWarningReason, setLastWarningReason } = useApp()
+  const isFromBackend = lastWarningReason != null && lastWarningReason.length > 0
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
+
+  const handleClose = () => {
+    setLastWarningReason(null)
+    onClose()
+  }
 
   return (
     <AnimatePresence>
@@ -23,7 +32,7 @@ export default function DangerWarningModal({ open, onClose }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleClose}
             style={{ background: 'rgba(4,8,18,0.82)', backdropFilter: 'blur(8px)' }}
           >
             <motion.div
@@ -52,15 +61,17 @@ export default function DangerWarningModal({ open, onClose }: Props) {
                       Baby danger detected
                     </h2>
                     <p className="text-sm opacity-80" style={{ color: '#b91c1c' }}>
-                      Test warning
+                      {isFromBackend ? 'Alert from monitor' : 'Test warning'}
                     </p>
                   </div>
                 </div>
                 <p className="text-sm leading-relaxed mb-5" style={{ color: '#7f1d1d', opacity: 0.9 }}>
-                  This is a test alert. Real alerts will appear here when the monitor detects a dangerous situation.
+                  {isFromBackend
+                    ? lastWarningReason
+                    : 'This is a test alert. Real alerts will appear here when the monitor detects a dangerous situation.'}
                 </p>
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="w-full py-2.5 rounded-xl text-sm font-medium transition-all duration-200"
                   style={{
                     background: 'linear-gradient(135deg, rgba(239,68,68,0.25), rgba(185,28,28,0.2))',
@@ -72,7 +83,7 @@ export default function DangerWarningModal({ open, onClose }: Props) {
                 </button>
               </div>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="absolute top-3 right-3 p-1.5 rounded-lg opacity-70 hover:opacity-100 transition-opacity"
                 style={{ color: '#b91c1c' }}
                 aria-label="Close"
