@@ -28,10 +28,12 @@ export default {
           '100%': { transform: 'translateX(-50%)' },
         },
         floatUp: {
-          '0%': { transform: 'translateY(100vh) scale(0.8)', opacity: '0' },
-          '10%': { opacity: '0.7' },
-          '90%': { opacity: '0.3' },
-          '100%': { transform: 'translateY(-60px) scale(1.1)', opacity: '0' },
+          '0%':   { transform: 'translate3d(0px, -10px, 0) scale(0.9)',  opacity: '0.08' },
+          '20%':  { transform: 'translate3d(10px, 6px, 0)  scale(0.96)', opacity: '0.22' },
+          '40%':  { transform: 'translate3d(-8px, 14px, 0) scale(1.02)', opacity: '0.32' },
+          '60%':  { transform: 'translate3d(6px, 4px, 0)   scale(1.05)', opacity: '0.26' },
+          '80%':  { transform: 'translate3d(-6px, 12px, 0) scale(0.98)', opacity: '0.18' },
+          '100%': { transform: 'translate3d(4px, -4px, 0)  scale(0.9)',  opacity: '0.08' },
         },
         pulseDot: {
           '0%,100%': { opacity: '1', transform: 'scale(1)' },
