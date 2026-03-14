@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root {
+    height: 100%;
+    background:
+      radial-gradient(circle at 0% 0%,   #f9e3ff 0%, #dbeafe 32%, transparent 70%),
+      radial-gradient(circle at 100% 0%, #bae6fd 0%, #ccfbf1 40%, transparent 78%),
+      radial-gradient(circle at 50% 100%, #f9a8d4 0%, #bfdbfe 45%, transparent 85%),
+      #020617;
+    color: #0f172a;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #f9a8d4, #60a5fa, #22c55e);
+    border-radius: 3px;
+  }
+}
+
+@layer components {
+  .text-dark-global,
+  .text-dark-global * {
+    color: #0f172a !important;
+  }
+
+  .home-step-button {
+    @apply transition-transform duration-300;
+    background: linear-gradient(135deg, rgba(249,168,212,0.25), rgba(96,165,250,0.25), rgba(110,231,183,0.22));
+    border-radius: 1.75rem;
+    border: 3px solid rgba(191,219,254,0.95);
+    box-shadow:
+      0 20px 45px rgba(148, 163, 184, 0.55),
+      0 0 0 1px rgba(255,255,255,0.9);
+    backdrop-filter: blur(24px);
+    transform: translateY(0);
+  }
+  .home-step-button:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(248,250,252,0.9));
+    border-color: rgba(226,232,240,0.9);
+    transform: translateY(-4px);
+  }
+
+  .glass-card {
+    background: linear-gradient(145deg, rgba(255,255,255,0.96), rgba(248,250,252,0.98));
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow:
+      0 26px 60px rgba(15, 23, 42, 0.35),
+      0 0 0 1px rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(30px);
+    border-radius: 1rem;
+    color: #0f172a;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 cursor-pointer;
+  }
+  .glass-card-hover:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(249, 168, 212, 0.20),
+      rgba(96, 165, 250, 0.22),
+      rgba(110, 231, 183, 0.22)
+    );
+    border-color: rgba(191, 219, 254, 0.95);
+    transform: translateY(-3px);
+  }
+
+  .btn-ocean {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer;
+    background: linear-gradient(135deg, #1d4ed8, #38bdf8);
+    border: 1px solid rgba(191, 219, 254, 0.9);
+    box-shadow:
+      0 16px 40px rgba(37, 99, 235, 0.7),
+      0 0 0 1px rgba(248, 250, 252, 0.9);
+    color: #f9fafb;
+  }
+  .btn-ocean:hover:not(:disabled) {
+    background: linear-gradient(135deg, #4f46e5, #38bdf8);
+    border-color: rgba(248, 250, 252, 1);
+    transform: translateY(-1px);
+  }
+  .btn-ocean:disabled { opacity: 0.38; cursor: not-allowed; transform: none; }
+
+  .btn-outline {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    color: #0f172a;
+  }
+  .btn-outline:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(249,168,212,0.20), rgba(96,165,250,0.24), rgba(110,231,183,0.22));
+    border-color: rgba(191, 219, 254, 0.95);
+    color: #020617;
+  }
+  .btn-outline:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-all duration-150 cursor-pointer;
+    color: rgba(100, 116, 139, 0.95);
+    background: transparent;
+    border: none;
+  }
+  .btn-ghost:hover {
+    color: #0f172a;
+    background: rgba(148, 163, 184, 0.15);
+  }
+
+  .input-ocean {
+    @apply w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all duration-200;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    color: #0f172a;
+    font-family: 'Outfit', sans-serif;
+  }
+  .input-ocean::placeholder { color: rgba(148, 163, 184, 0.85); }
+  .input-ocean:focus {
+    border-color: rgba(129, 140, 248, 0.9);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.3);
+  }
+
+  .step-number-badge {
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(130,190,220,0.45);
+    font-weight: 300;
+  }
+
+  .severity-high   { background: rgba(163,45,45,0.18);  border-color: rgba(220,80,80,0.3);  color: #f09595; }
+  .severity-medium { background: rgba(186,117,23,0.18); border-color: rgba(250,199,117,0.3); color: #FAC775; }
+  .severity-low    { background: rgba(15,109,86,0.18);  border-color: rgba(29,158,117,0.3); color: #5DCAA5; }
+}
