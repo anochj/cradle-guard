@@ -1,15 +1,14 @@
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
 from ultralytics import YOLO
-#io (fake file on ram), cv2 for img processing 
 import io
 import os
-from dotenv import load_dotenv 
-from fastapi import Request
+import json
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+from prompts import get_safety_prompt
 
-#img grid of #s, numpy handles #s
-#cv2 uses numpy to represent img and decode for yolo
-#pil covert img data for gemnini
 import numpy as np
 import cv2
 from PIL import Image
@@ -17,7 +16,47 @@ from PIL import Image
 
 load_dotenv()
 
-app = FASTAPI()
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ── WebSocket connection manager ─────────────────────────────────────
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active_connections.append(ws)
+
+    def disconnect(self, ws: WebSocket):
+        self.active_connections.remove(ws)
+
+    async def broadcast(self, message: dict):
+        for conn in list(self.active_connections):
+            try:
+                await conn.send_json(message)
+            except Exception:
+                self.active_connections.remove(conn)
+
+manager = ConnectionManager()
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 genai.configure(api_key=os.getenv("GENAI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
@@ -107,18 +146,39 @@ async def analyze_image(
         img_pil = Image.open(io.BytesIO(image_bytes))
         final_prompt = get_safety_prompt(overlapping_hazards, is_deep_scan)
         
-        response = gemini_model.generate_content([final_prompt, img_pil])
+        response = model.generate_content([final_prompt, img_pil])
         ai_dict = json.loads(response.text)
         
         ai_dict["yolo_boxes"] = all_detections
         ai_dict["pipeline_used"] = f"Gemini ({trigger_reason})"
+
+        await manager.broadcast({
+            "type": "alert" if ai_dict.get("status") == "HAZARD" else "status",
+            "status": ai_dict.get("status", "SAFE"),
+            "reason": ai_dict.get("reason", ""),
+            "pipeline_used": ai_dict["pipeline_used"],
+            "yolo_boxes": all_detections,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
         return ai_dict
         
     else:
         print("YOLO says baby is safe. No hazards in proximity..")
-        return {
+        result = {
             "status": "SAFE",
             "reason": "YOLO verified all hazards are outside the predictive safety buffer.",
             "yolo_boxes": all_detections,
             "pipeline_used": "YOLO Only (Fast/Free)"
         }
+
+        await manager.broadcast({
+            "type": "status",
+            "status": "SAFE",
+            "reason": result["reason"],
+            "pipeline_used": result["pipeline_used"],
+            "yolo_boxes": all_detections,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+        return result
