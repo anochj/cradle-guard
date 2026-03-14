@@ -38,12 +38,11 @@ export default function Home() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1 }}
       >
-        <svg className="mx-auto mb-5 opacity-90" width="54" height="54" viewBox="0 0 54 54" fill="none">
-          <circle cx="27" cy="27" r="26" stroke="rgba(100,200,230,0.28)" strokeWidth="1" />
-          <circle cx="27" cy="27" r="17" stroke="rgba(100,200,230,0.45)" strokeWidth="1.4" />
-          <circle cx="27" cy="27" r="6.5" fill="rgba(100,200,230,0.3)" stroke="rgba(120,210,240,0.55)" strokeWidth="1" />
-          <path d="M27 10v7M27 37v7M10 27h7M37 27h7" stroke="rgba(100,200,230,0.22)" strokeWidth="1" strokeLinecap="round" />
-        </svg>
+        <img
+          src="/cradleguard-logo.png"
+          alt="Cradle Guard"
+          className="mx-auto mb-5 opacity-95 w-20 h-20 object-contain"
+        />
         <h1 className="font-serif italic text-5xl text-ocean-100 tracking-wide">Cradle Guard</h1>
         <p className="text-xs tracking-[0.2em] uppercase text-ocean-300 opacity-40 font-light mt-3">
           Baby Safety Monitor
