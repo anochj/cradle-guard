@@ -8,12 +8,10 @@ A React + TypeScript baby safety monitor powered by the **Gemini Vision API**. P
 
 | Layer     | Technology                        |
 |-----------|-----------------------------------|
-| Frontend  | React 18, TypeScript, Vite        |
+| Frontend  | React, TypeScript, Vite           |
 | Styling   | Tailwind CSS, Framer Motion       |
-| AI        | Google Gemini 1.5 Flash (Vision)  |
-| Camera    | WebRTC `getUserMedia`             |
-| Routing   | React Router v6                   |
-| Toasts    | react-hot-toast                   |
+| AI        | Google Gemini                     |
+| Camera    | WebRTC, Raspberry Pi camera       |
 
 ---
 
@@ -80,43 +78,6 @@ npm run preview
 
 ---
 
-## Project Structure
-
-```
-cradle-guard/
-├── src/
-│   ├── api/
-│   │   └── gemini.ts          # All Gemini API calls
-│   ├── components/
-│   │   ├── OceanBackground.tsx
-│   │   └── PageHeader.tsx
-│   ├── context/
-│   │   └── AppContext.tsx      # Global state
-│   ├── hooks/
-│   │   └── useCamera.ts        # WebRTC camera hook
-│   ├── pages/
-│   │   ├── Home.tsx            # Main menu
-│   │   ├── Setup.tsx           # Camera + hazard scan
-│   │   ├── Actions.tsx         # Dangerous actions
-│   │   ├── Alerts.tsx          # Alert settings
-│   │   └── Monitor.tsx         # Live monitoring
-│   ├── types/
-│   │   └── index.ts
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── index.css
-├── index.html
-├── package.json
-├── tailwind.config.js
-├── vite.config.ts
-└── tsconfig.json
-```
-
----
-
-## Deploying to Raspberry Pi
-
-Cradle Guard is a pure frontend app — no server needed. To run it on a Raspberry Pi:
 
 ```bash
 # On your dev machine

@@ -56,12 +56,12 @@ export default function OceanBackground() {
       }} />
       <div ref={ref} className="fixed inset-0 z-0 pointer-events-none" />
       <svg className="fixed bottom-0 left-0 z-0 pointer-events-none opacity-[0.12] animate-waveMove"
-        style={{ width: '200%', height: '130px' }} viewBox="0 0 1440 130" preserveAspectRatio="none">
-        <path d="M0,65 C180,15 360,115 540,65 C720,15 900,115 1080,65 C1260,15 1350,85 1440,65 L1440,130 L0,130 Z" fill="#c4e4ff" />
+        style={{ width: '200%', height: '220px' }} viewBox="0 0 1440 130" preserveAspectRatio="none">
+        <path d="M0,65 C180,15 360,115 540,65 C720,15 900,115 1080,65 C1260,15 1350,85 1440,65 L1440,130 L0,130 Z" fill="#e8f4fc" />
       </svg>
       <svg className="fixed bottom-0 left-0 z-0 pointer-events-none opacity-[0.09] animate-waveMoveSlow"
-        style={{ width: '200%', height: '110px' }} viewBox="0 0 1440 110" preserveAspectRatio="none">
-        <path d="M0,55 C200,100 400,10 600,55 C800,100 1000,10 1200,55 C1320,80 1380,30 1440,55 L1440,110 L0,110 Z" fill="#f9d1ff" />
+        style={{ width: '200%', height: '180px' }} viewBox="0 0 1440 110" preserveAspectRatio="none">
+        <path d="M0,55 C200,100 400,10 600,55 C800,100 1000,10 1200,55 C1320,80 1380,30 1440,55 L1440,110 L0,110 Z" fill="#eef6fc" />
       </svg>
     </>
   )

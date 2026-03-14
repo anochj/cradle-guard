@@ -12,14 +12,15 @@ export interface DangerousAction {
   enabled: boolean
 }
 
-export type AlertMethod = 'push' | 'sound' | 'email' | 'sms'
+export type AlertMethod = 'website' | 'sound'
+
+export type SoundDelivery = 'both' | 'website' | 'speaker'
 
 export interface AlertSettings {
   methods: AlertMethod[]
-  email: string
-  phone: string
   soundVolume: number
   sensitivity: 'low' | 'medium' | 'high'
+  soundDelivery: SoundDelivery
 }
 
 export interface EventLog {

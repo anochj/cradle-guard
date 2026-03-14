@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Camera, AlertTriangle, Bell } from 'lucide-react'
+import { Camera, AlertTriangle, Bell, TestTube } from 'lucide-react'
+import { useApp } from '../context/AppContext'
 
 const STEPS = [
   {
@@ -28,6 +29,7 @@ const STEPS = [
 
 export default function Home() {
   const navigate = useNavigate()
+  const { setWarningModalOpen, setLastWarningReason } = useApp()
 
   return (
     <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-8 pb-40">
@@ -38,12 +40,11 @@ export default function Home() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1 }}
       >
-        <svg className="mx-auto mb-5 opacity-90" width="54" height="54" viewBox="0 0 54 54" fill="none">
-          <circle cx="27" cy="27" r="26" stroke="rgba(100,200,230,0.28)" strokeWidth="1" />
-          <circle cx="27" cy="27" r="17" stroke="rgba(100,200,230,0.45)" strokeWidth="1.4" />
-          <circle cx="27" cy="27" r="6.5" fill="rgba(100,200,230,0.3)" stroke="rgba(120,210,240,0.55)" strokeWidth="1" />
-          <path d="M27 10v7M27 37v7M10 27h7M37 27h7" stroke="rgba(100,200,230,0.22)" strokeWidth="1" strokeLinecap="round" />
-        </svg>
+        <img
+          src="/cradleguard-logo.png"
+          alt="Cradle Guard"
+          className="mx-auto mb-5 opacity-95 w-32 h-32 object-contain"
+        />
         <h1 className="font-serif italic text-5xl text-ocean-100 tracking-wide">Cradle Guard</h1>
         <p className="text-xs tracking-[0.2em] uppercase text-ocean-300 opacity-40 font-light mt-3">
           Baby Safety Monitor
@@ -93,6 +94,30 @@ export default function Home() {
           </>
         ))}
       </div>
+
+      {/* Test warning button — bottom right, above Live Feed */}
+      <motion.button
+        onClick={() => { setLastWarningReason(null); setWarningModalOpen(true) }}
+        className="fixed bottom-28 right-6 z-30 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
+        initial={{ opacity: 0, x: 8 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.6 }}
+        style={{
+          background: 'rgba(239,68,68,0.18)',
+          border: '1px solid rgba(248,113,113,0.45)',
+          color: '#b91c1c',
+          backdropFilter: 'blur(12px)',
+        }}
+        whileHover={{
+          background: 'rgba(239,68,68,0.28)',
+          borderColor: 'rgba(248,113,113,0.6)',
+        }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <TestTube size={14} strokeWidth={2} />
+        Test warning
+      </motion.button>
+
     </div>
   )
 }
