@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prompts import get_relation_map_prompt
 from ultralytics import YOLOWorld
 from database import init_db, insert_object_relationship, insert_ai_object_relationship, get_all_relationships, insert_special_instruction, get_all_special_instructions
+import asyncio
 
 
 load_dotenv()
@@ -19,8 +20,7 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 YOLO_MODEL_NAME = os.getenv("YOLO_MODEL_NAME", "yolov8s-world.pt")
-LONG_CONTEXT_BUFFER_SIZE = int(os.getenv("LONG_CONTEXT_BUFFER_SIZE", "100"))
-LONG_CONTEXT_MAX_IMAGES = int(os.getenv("LONG_CONTEXT_MAX_IMAGES", "300"))
+LONG_CONTEXT_BUFFER_SIZE = int(os.getenv("LONG_CONTEXT_BUFFER_SIZE", "50"))
 DEFAULT_CLASSES = os.getenv(
     "DEFAULT_CLASSES",
     "baby,person,bed,crib,blanket,bottle,toy,chair,table,sofa,stairs,window,knife,scissors"
@@ -299,68 +299,128 @@ async def handle_yolo_classification(base64_image: str, signal: SignalingState):
             metadata={"unsafe_relationships": [rel.model_dump() for rel in unsafe]},
         )
 
-def select_evenly_spread_images(images: list[str], max_images: int) -> list[str]:
-    if len(images) <= max_images:
-        return images
-
-    selected_indexes = np.linspace(0, len(images) - 1, num=max_images, dtype=int)
-    return [images[index] for index in selected_indexes]
-
 async def handle_long_term_context(base_64_image: str, signaling: SignalingState):
     if gemini_client is None:
         return
 
     frame_buffer.append(base_64_image)
-    if len(frame_buffer) > LONG_CONTEXT_BUFFER_SIZE:
-        result: SituationAnalysisResult | None = None
-        buffered_images = frame_buffer.copy()
-        frame_buffer.clear()
-        buffered_images = select_evenly_spread_images(buffered_images, LONG_CONTEXT_MAX_IMAGES)
 
-        image_parts: list[genai.types.Part] = [
+    if len(frame_buffer) < LONG_CONTEXT_BUFFER_SIZE:
+        return
+
+    print("######### Calling Gemini for long-term context analysis... ##########")
+
+    result: SituationAnalysisResult | None = None
+    buffered_images = frame_buffer.copy()
+    frame_buffer.clear()
+
+    # Start smaller while debugging
+    buffered_images = buffered_images[-4:]
+
+    image_parts: list[genai.types.Part] = []
+    total_bytes = 0
+
+    for img in buffered_images:
+        raw_bytes = base64.b64decode(img.split(",", 1)[1] if "," in img else img)
+        total_bytes += len(raw_bytes)
+        image_parts.append(
             genai.types.Part.from_bytes(
-                data=base64.b64decode(img.split(',', 1)[1] if ',' in img else img),
+                data=raw_bytes,
                 mime_type="image/jpeg",
             )
-            for img in buffered_images
-        ]
-        contents_payload: Any = [genai.types.Content(role="user", parts=image_parts)]
-        special_instructions = get_all_special_instructions()
-        if special_instructions:
-            contents_payload.append(
-                genai.types.Content(
-                    role="system",
-                    parts=[genai.types.Part.from_text(text=f"User special instructions: {special_instructions}")]    
-                )
-            )
-
-        response = gemini_client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=contents_payload,
-            config={
-                "response_mime_type": "application/json",
-                "response_json_schema": SituationAnalysisResult.model_json_schema(),
-            }
         )
 
-        if response and response.text:
-            result = SituationAnalysisResult.model_validate_json(response.text)
+    print(f"Prepared {len(image_parts)} images for Gemini, total {total_bytes / 1024:.1f} KB")
 
-            if result.immediately_alert:
-                await signaling.send_immediate_alert(
-                    signal="immediate_threat",
-                    descriptor=result.analysis,
-                    metadata=result.model_dump(),
-                )
+    user_prompt = (
+        "Analyze this sequence of images for baby safety. "
+        "Identify immediate dangers, concerning object interactions, and precautions. "
+        "Return only valid JSON matching the schema."
+    )
 
-            if result.relationships:
-                for rel in result.relationships:
-                    insert_ai_object_relationship(rel)
+    system_instruction = (
+        "You analyze baby safety across a sequence of images. "
+        "Focus on danger, risky proximity, and unsafe interactions."
+    )
 
+    special_instructions = get_all_special_instructions()
+    if special_instructions:
+        system_instruction += f"\nUser special instructions: {special_instructions}"
+
+    try:
+        print("Sending images and instructions to Gemini for analysis...")
+
+        response = await asyncio.wait_for(
+            gemini_client.aio.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=[*image_parts, user_prompt],
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_json_schema=SituationAnalysisResult.model_json_schema(),
+                ),
+            ),
+            timeout=45,
+        )
+
+        print("Received response from Gemini for long-term context analysis.")
+        print("Gemini raw response:", response.text)
+
+    except asyncio.TimeoutError:
+        print("Gemini request timed out.")
+        await signaling.send_immediate_alert(
+            signal="processing_error",
+            descriptor="Gemini request timed out during long-term context analysis.",
+            metadata={"error": "timeout"},
+        )
+        return
+
+    except Exception as exc:
+        print(f"Gemini call failed: {type(exc).__name__}: {exc}")
+        await signaling.send_immediate_alert(
+            signal="processing_error",
+            descriptor=f"Gemini long-term context analysis failed: {exc}",
+            metadata={"error": str(exc)},
+        )
+        return
+
+    if not response or not response.text:
+        print("Gemini returned no text.")
         await signaling.send_to_frontend({
             "type": "long_term_context_analysis",
-            "data": result.model_dump() if result else None,
+            "data": None,
         })
+        return
+
+    try:
+        result = SituationAnalysisResult.model_validate_json(response.text)
+    except Exception as exc:
+        print(f"Failed to parse Gemini JSON: {type(exc).__name__}: {exc}")
+        print("Unparsed Gemini text:", response.text)
+        await signaling.send_immediate_alert(
+            signal="processing_error",
+            descriptor="Gemini returned invalid JSON for long-term context analysis.",
+            metadata={"error": str(exc), "raw_response": response.text},
+        )
+        return
+
+    print(result.analysis)
+
+    if result.immediately_alert:
+        await signaling.send_immediate_alert(
+            signal="immediate_threat",
+            descriptor=result.analysis,
+            metadata=result.model_dump(),
+        )
+
+    if result.relationships:
+        for rel in result.relationships:
+            insert_ai_object_relationship(rel)
+
+    await signaling.send_to_frontend({
+        "type": "long_term_context_analysis",
+        "data": result.model_dump(),
+    })
 
 async def handle_incoming_image(base64_image: str, signaling: SignalingState) -> None:
     if not base64_image:
@@ -369,7 +429,7 @@ async def handle_incoming_image(base64_image: str, signaling: SignalingState) ->
 
     await handle_yolo_classification(base64_image, signaling)
     # TODO: Uncomment
-    # await handle_long_term_context(base64_image, signaling)
+    await handle_long_term_context(base64_image, signaling)
 
 @app.websocket("/ws/signaling/camera")
 async def ws_signaling_camera(websocket: WebSocket):
