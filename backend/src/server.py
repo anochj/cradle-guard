@@ -18,7 +18,7 @@ import asyncio
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 YOLO_MODEL_NAME = os.getenv("YOLO_MODEL_NAME", "yolov8s-world.pt")
 LONG_CONTEXT_BUFFER_SIZE = int(os.getenv("LONG_CONTEXT_BUFFER_SIZE", "50"))
 DEFAULT_CLASSES = os.getenv(
