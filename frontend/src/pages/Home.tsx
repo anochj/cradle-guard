@@ -1,29 +1,21 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Camera, AlertTriangle, Bell, TestTube } from 'lucide-react'
-import { useApp } from '../context/AppContext'
+import { Camera, SlidersHorizontal } from 'lucide-react'
 
 const STEPS = [
   {
     num: '01',
-    label: 'Room Setup',
+    label: 'Live View',
     Icon: Camera,
-    to: '/setup',
+    to: '/live',
     delay: 0.25,
   },
   {
     num: '02',
-    label: 'Dangerous Actions',
-    Icon: AlertTriangle,
-    to: '/actions',
+    label: 'Settings',
+    Icon: SlidersHorizontal,
+    to: '/settings',
     delay: 0.4,
-  },
-  {
-    num: '03',
-    label: 'Alert Settings',
-    Icon: Bell,
-    to: '/alerts',
-    delay: 0.55,
   },
 ]
 
@@ -31,20 +23,12 @@ const STEPS = [
 const FLOAT_PATHS = [
   { x: [0, 4, -3, 0], y: [0, -4, 2, 0], duration: 2.8, delay: 0 },
   { x: [0, -5, 2, 0], y: [0, 3, -4, 0], duration: 3.2, delay: 0.4 },
-  { x: [0, -2, 5, 0], y: [0, -3, 4, 0], duration: 2.5, delay: 0.8 },
 ]
 
 export default function Home() {
   const navigate = useNavigate()
-  const { hazards, actions, setWarningModalOpen, setLastWarningReason } = useApp()
-  const step1Complete = hazards.length > 0
-  const step2Complete = actions.length > 0
-  const canClickStep = (i: number) => {
-    if (i === 0) return true
-    if (i === 1) return step1Complete
-    return step2Complete
-  }
-  const nextStepIndex = !step1Complete ? 0 : !step2Complete ? 1 : 2
+  const canClickStep = () => true
+  const nextStepIndex = 0
 
   return (
     <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-8 pb-40">
@@ -117,30 +101,6 @@ export default function Home() {
           </>
         ))}
       </div>
-
-      {/* Test warning button — bottom right, above Live Feed */}
-      <motion.button
-        onClick={() => { setLastWarningReason(null); setWarningModalOpen(true) }}
-        className="fixed bottom-28 right-6 z-30 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
-        initial={{ opacity: 0, x: 8 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.6 }}
-        style={{
-          background: 'rgba(239,68,68,0.18)',
-          border: '1px solid rgba(248,113,113,0.45)',
-          color: '#b91c1c',
-          backdropFilter: 'blur(12px)',
-        }}
-        whileHover={{
-          background: 'rgba(239,68,68,0.28)',
-          borderColor: 'rgba(248,113,113,0.6)',
-        }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <TestTube size={14} strokeWidth={2} />
-        Test warning
-      </motion.button>
-
     </div>
   )
 }
