@@ -38,10 +38,28 @@
     backdrop-filter: blur(24px);
     transform: translateY(0);
   }
+  .home-step-button.step-available {
+    background: linear-gradient(135deg, rgba(249,168,212,0.42), rgba(96,165,250,0.4), rgba(110,231,183,0.38));
+    border-width: 4px;
+    border-color: rgba(255,255,255,1);
+    box-shadow: 0 20px 45px rgba(148, 163, 184, 0.55), 0 0 0 1px rgba(255,255,255,0.6), 0 8px 24px rgba(96, 165, 250, 0.25);
+  }
   .home-step-button:hover {
     background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(248,250,252,0.9));
     border-color: rgba(226,232,240,0.9);
     transform: translateY(-4px);
+  }
+  .home-step-button.step-available:hover {
+    box-shadow: 0 24px 50px rgba(148, 163, 184, 0.6), 0 0 0 1px rgba(255,255,255,0.8), 0 12px 32px rgba(96, 165, 250, 0.35);
+  }
+  .home-step-button.step-next {
+    background: linear-gradient(135deg, rgba(249,168,212,0.55), rgba(96,165,250,0.52), rgba(110,231,183,0.5));
+    border-width: 4px;
+    border-color: rgba(255,255,255,1);
+    box-shadow: 0 22px 50px rgba(148, 163, 184, 0.6), 0 0 0 2px rgba(255,255,255,0.9), 0 12px 32px rgba(96, 165, 250, 0.4), 0 0 40px rgba(110, 231, 183, 0.2);
+  }
+  .home-step-button.step-next:hover {
+    box-shadow: 0 26px 56px rgba(148, 163, 184, 0.65), 0 0 0 2px rgba(255,255,255,1), 0 14px 36px rgba(96, 165, 250, 0.45), 0 0 48px rgba(110, 231, 183, 0.25);
   }
 
   .glass-card {
