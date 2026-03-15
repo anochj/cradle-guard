@@ -1,5 +1,27 @@
 #f-string for custom danger?
 #yolo does anaylsis and gives us a list of hazards, which is used to custom prompt Gemini to focus on those hazards, else general safety check
+def get_relation_map_prompt(text: str) -> str:
+    """
+    Generates a prompt asking Gemini to extract object safety relationships from free-form text.
+    """
+    return f"""
+    You are an expert nursery and home safety analyst AI.
+
+    Based on the following user-provided description or context, generate a list of object relationship pairs that represent potential safety hazards.
+    Each relationship describes two objects that could be dangerous when in proximity to each other, and an "unsafe_distance" value in pixels (range 20-100)
+    indicating the threshold at which their proximity becomes concerning — higher values mean the pair is dangerous even from further away.
+
+    Examples:
+    - baby near scissors → unsafe_distance close to 100 (extreme danger)
+    - baby near a soft toy → unsafe_distance close to 20 (mild concern)
+    - child near an open window → unsafe_distance around 80
+
+    User description:
+    {text}
+
+    You must respond ONLY with a valid JSON object. Do not include markdown, code fences, or extra commentary.
+    """
+
 def get_safety_prompt(yolo_hazards: list, is_deep_scan: bool = False) -> str:
     """
     Generates a dynamic prompt for Gemini based on WHY it was woken up.
