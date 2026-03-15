@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import toast from 'react-hot-toast'
 import { ShieldCheck, ShieldAlert, StopCircle, Trash2, Eye, Volume2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { useCamera } from '../hooks/useCamera'
-import { checkFrameForDangers } from '../api/gemini'
 
-const INTERVAL_MS = 8000
+// Helper to get the correct WebSocket URL based on your environment
+const getWsUrl = (): string => {
+  const base = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000'
+  const wsBase = base.replace(/^http/, 'ws')
+  return `${wsBase}/ws/client`
+}
 
+// Same alarm sound generator you already built!
 function playAlarm(volume: number) {
   try {
     const ctx = new AudioContext()
@@ -34,66 +37,84 @@ function sendPushNotification(message: string) {
 
 export default function Monitor() {
   const navigate = useNavigate()
-  const { apiKey, actions, alertSettings, setIsMonitoring, eventLog, addEvent, clearEvents } = useApp()
-  const { videoRef, canvasRef, isActive, start, stop, captureFrame } = useCamera()
-  const [allClear, setAllClear] = useState(true)
-  const [checking, setChecking] = useState(false)
-  const [currentAlerts, setCurrentAlerts] = useState<string[]>([])
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const { alertSettings, setIsMonitoring, eventLog, addEvent, clearEvents } = useApp()
+  
+  // --- NEW WEBSOCKET STATES ---
+  const wsRef = useRef<WebSocket | null>(null)
+  const [liveFrame, setLiveFrame] = useState<string | null>(null)
+  const [aiStatus, setAiStatus] = useState<'SAFE' | 'HAZARD'>('SAFE')
+  const [reason, setReason] = useState<string>("Connecting to camera...")
+  const [pipeline, setPipeline] = useState<string>("Initializing...")
+  const [boxes, setBoxes] = useState<any[]>([])
 
-  const watchList = actions.filter(a => a.enabled).map(a => a.text)
+  useEffect(() => {
+    setIsMonitoring(true)
 
-  const checkFrame = useCallback(async () => {
-    const frame = captureFrame(0.7)
-    if (!frame || !apiKey) return
-    setChecking(true)
-    try {
-      const { triggered, allClear: clear } = await checkFrameForDangers(
-        frame, watchList, alertSettings.sensitivity, apiKey
-      )
-      setAllClear(clear)
-      setCurrentAlerts(triggered)
+    const connect = () => {
+      wsRef.current = new WebSocket(getWsUrl())
 
-      if (!clear && triggered.length > 0) {
-        const soundDelivery = alertSettings.soundDelivery ?? 'both'
-        triggered.forEach(t => {
-          addEvent(t, 'danger')
-          if (alertSettings.methods.includes('sound') && (soundDelivery === 'both' || soundDelivery === 'speaker')) {
-            playAlarm(alertSettings.soundVolume)
-          }
-          if (alertSettings.methods.includes('website') && (soundDelivery === 'both' || soundDelivery === 'website')) {
-            sendPushNotification(t)
-          }
-        })
-      } else {
-        addEvent('Frame checked — all clear', 'info')
+      wsRef.current.onopen = () => {
+        setReason("Camera connected. Monitoring active.")
+        setPipeline("System Ready")
       }
-    } catch (e) {
-      addEvent('Check failed: ' + (e instanceof Error ? e.message : 'Unknown'), 'warning')
-    } finally {
-      setChecking(false)
+
+      wsRef.current.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+
+          // 1. Update the live video feed
+          if (data.live_frame) {
+            setLiveFrame(data.live_frame)
+          }
+
+          // 2. Update the YOLO Bounding Boxes
+          if (data.yolo_boxes) {
+            setBoxes(data.yolo_boxes)
+          }
+
+          // 3. Handle Hazards (YOLO or Gemini)
+          if (data.status === 'HAZARD') {
+            setAiStatus('HAZARD')
+            setReason(data.reason)
+            setPipeline(data.pipeline_used)
+            
+            // Log it and sound the alarm!
+            addEvent(data.reason, 'danger')
+            const soundDelivery = alertSettings.soundDelivery ?? 'both'
+            
+            if (alertSettings.methods.includes('sound') && (soundDelivery === 'both' || soundDelivery === 'speaker')) {
+              playAlarm(alertSettings.soundVolume)
+            }
+            if (alertSettings.methods.includes('website') && (soundDelivery === 'both' || soundDelivery === 'website')) {
+              sendPushNotification(data.reason)
+            }
+          } 
+          // 4. Handle Safe States (Don't override a Gemini Hazard with a YOLO Safe!)
+          else if (data.status === 'SAFE') {
+            setAiStatus(prev => {
+              if (prev === 'HAZARD' && data.pipeline_used.includes('YOLO')) {
+                return 'HAZARD' // Keep the hazard locked until Gemini clears it!
+              }
+              setReason(data.reason)
+              setPipeline(data.pipeline_used)
+              return 'SAFE'
+            })
+          }
+        } catch (e) {
+          console.error("WebSocket message error:", e)
+        }
+      }
     }
-  }, [captureFrame, apiKey, watchList, alertSettings, addEvent])
 
-  useEffect(() => {
-    start()
-    return () => { stop() }
-  }, [])
+    connect()
 
-  useEffect(() => {
-    if (!isActive) return
-    // First check after 2s
-    const firstTimeout = setTimeout(() => { checkFrame() }, 2000)
-    intervalRef.current = setInterval(checkFrame, INTERVAL_MS)
     return () => {
-      clearTimeout(firstTimeout)
-      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (wsRef.current) wsRef.current.close()
     }
-  }, [isActive, checkFrame])
+  }, []) // Empty dependency array ensures we only connect once
 
   const handleStop = () => {
-    stop()
-    if (intervalRef.current) clearInterval(intervalRef.current)
+    if (wsRef.current) wsRef.current.close()
     setIsMonitoring(false)
     navigate('/alerts')
   }
@@ -108,11 +129,11 @@ export default function Monitor() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulseDot" />
-              <span className="text-xs tracking-widest uppercase text-green-400 opacity-80 font-light">Live</span>
+              <span className="text-xs tracking-widest uppercase text-green-400 opacity-80 font-light">Live Pi Feed</span>
             </div>
             <h2 className="font-serif italic text-3xl text-ocean-100">Monitoring</h2>
             <p className="text-sm text-ocean-300 opacity-55 mt-0.5">
-              Checking every {INTERVAL_MS / 1000}s · {watchList.length} actions watched
+              Powered by: <span className="font-semibold text-ocean-200">{pipeline}</span>
             </p>
           </div>
           <button onClick={handleStop} className="btn-danger flex items-center gap-2">
@@ -125,26 +146,52 @@ export default function Monitor() {
           {/* Camera feed - 3 cols */}
           <div className="lg:col-span-3 flex flex-col gap-4">
             <div className="glass-card p-3 relative">
-              <div className="relative rounded-xl overflow-hidden bg-ocean-950" style={{ aspectRatio: '16/9' }}>
-                <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-                <canvas ref={canvasRef} className="hidden" />
-
-                {/* Scan line while checking */}
-                {checking && (
-                  <div className="absolute left-0 right-0 h-0.5 animate-scanLine pointer-events-none"
-                    style={{ background: 'linear-gradient(90deg,transparent,rgba(74,159,197,0.85),transparent)' }} />
+              <div className="relative rounded-xl overflow-hidden bg-ocean-950 flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
+                
+                {/* --- THE NEW VIDEO FEED: Just an image tag receiving base64! --- */}
+                {liveFrame ? (
+                  <img src={liveFrame} alt="Live Stream" className="w-full h-full object-cover" />
+                ) : (
+                  <p className="text-ocean-300 opacity-50">Waiting for Raspberry Pi...</p>
                 )}
+
+                {/* YOLO Bounding Boxes Overlay */}
+                {boxes.map((b, i) => {
+                  // The Pi sends 640x480. We convert bounding boxes to percentages so they scale with the UI!
+                  const left = (b.box[0] / 640) * 100
+                  const top = (b.box[1] / 480) * 100
+                  const width = ((b.box[2] - b.box[0]) / 640) * 100
+                  const height = ((b.box[3] - b.box[1]) / 480) * 100
+                  
+                  const isBaby = b.label === 'baby'
+                  
+                  return (
+                    <div 
+                      key={i} 
+                      className="absolute border-2 pointer-events-none transition-all duration-75"
+                      style={{
+                        left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%`,
+                        borderColor: isBaby ? '#5DCAA5' : '#f09595',
+                        backgroundColor: isBaby ? 'rgba(93, 202, 165, 0.1)' : 'rgba(240, 149, 149, 0.1)'
+                      }}
+                    >
+                      <span className="absolute -top-5 left-0 text-[10px] px-1 bg-black/60 text-white rounded">
+                        {b.label}
+                      </span>
+                    </div>
+                  )
+                })}
 
                 {/* Status badge */}
                 <div className="absolute top-3 left-3">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-md"
                     style={{
-                      background: allClear ? 'rgba(15,109,86,0.5)' : 'rgba(163,45,45,0.5)',
-                      border: `1px solid ${allClear ? 'rgba(29,158,117,0.4)' : 'rgba(220,80,80,0.4)'}`,
-                      color: allClear ? '#5DCAA5' : '#f09595',
+                      background: aiStatus === 'SAFE' ? 'rgba(15,109,86,0.7)' : 'rgba(163,45,45,0.8)',
+                      border: `1px solid ${aiStatus === 'SAFE' ? 'rgba(29,158,117,0.6)' : 'rgba(220,80,80,0.6)'}`,
+                      color: aiStatus === 'SAFE' ? '#5DCAA5' : '#f09595',
                     }}>
-                    {allClear ? <ShieldCheck size={11} /> : <ShieldAlert size={11} />}
-                    {checking ? 'Checking…' : allClear ? 'All Clear' : `${currentAlerts.length} Alert${currentAlerts.length !== 1 ? 's' : ''}`}
+                    {aiStatus === 'SAFE' ? <ShieldCheck size={11} /> : <ShieldAlert size={11} />}
+                    {aiStatus}
                   </div>
                 </div>
               </div>
@@ -152,7 +199,7 @@ export default function Monitor() {
 
             {/* Alert banner */}
             <AnimatePresence>
-              {!allClear && currentAlerts.length > 0 && (
+              {aiStatus === 'HAZARD' && (
                 <motion.div
                   className="glass-card p-4 flex flex-col gap-2"
                   style={{ borderColor: 'rgba(220,80,80,0.35)', background: 'rgba(163,45,45,0.18)' }}
@@ -162,9 +209,9 @@ export default function Monitor() {
                     <ShieldAlert size={16} />
                     Danger Detected!
                   </div>
-                  {currentAlerts.map((a, i) => (
-                    <p key={i} className="text-xs text-red-200 opacity-80 pl-6">{a}</p>
-                  ))}
+                  <p className="text-xs text-red-200 opacity-90 pl-6 leading-relaxed">
+                    {reason}
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -182,9 +229,8 @@ export default function Monitor() {
             </div>
           </div>
 
-          {/* Sidebar - 2 cols */}
+          {/* Sidebar - Event Log */}
           <div className="lg:col-span-2 flex flex-col gap-4">
-            {/* Event log */}
             <div className="glass-card p-4 flex flex-col flex-1 min-h-0">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-ocean-100 text-sm font-medium">Event Log</h3>
@@ -192,7 +238,7 @@ export default function Monitor() {
                   <Trash2 size={11} /> Clear
                 </button>
               </div>
-              <div className="flex flex-col gap-1.5 overflow-y-auto max-h-64 min-h-[100px]">
+              <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[500px] min-h-[100px]">
                 {eventLog.length === 0 ? (
                   <p className="text-xs text-ocean-300 opacity-35 text-center py-6">No events yet.</p>
                 ) : (
@@ -210,23 +256,6 @@ export default function Monitor() {
                         </p>
                       </div>
                     </motion.div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Watch list */}
-            <div className="glass-card p-4">
-              <h3 className="text-ocean-100 text-sm font-medium mb-3">Watching for</h3>
-              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
-                {watchList.length === 0 ? (
-                  <p className="text-xs text-ocean-300 opacity-35">No actions configured.</p>
-                ) : (
-                  watchList.map((a, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-ocean-200 opacity-65">
-                      <span className="mt-1 flex-shrink-0">·</span>
-                      <span className="leading-relaxed">{a}</span>
-                    </div>
                   ))
                 )}
               </div>

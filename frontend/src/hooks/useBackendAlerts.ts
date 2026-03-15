@@ -1,17 +1,21 @@
 import { useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
 
+// FIXED: Pointing to the new Client Door
 const getWsUrl = (): string => {
   const base = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000'
   const wsBase = base.replace(/^http/, 'ws')
-  return `${wsBase}/ws`
+  return `${wsBase}/ws/client` // <-- Updated from /ws to /ws/client
 }
 
+// FIXED: Updated to match your new multi-threaded backend schema
 interface BackendAlertMessage {
-  type: 'alert' | 'status'
-  status: string
+  type: 'yolo_alert' | 'yolo_safe' | 'gemini_update'
+  status: 'SAFE' | 'HAZARD'
   reason?: string
   pipeline_used?: string
+  yolo_boxes?: any[]
+  live_frame?: string
   timestamp?: string
 }
 
@@ -30,7 +34,9 @@ export function useBackendAlerts() {
         ws.onmessage = (event) => {
           try {
             const data: BackendAlertMessage = JSON.parse(event.data)
-            if (data.type === 'alert' && data.status === 'HAZARD') {
+            
+            // FIXED: We now just check if the status is HAZARD, regardless of which AI caught it!
+            if (data.status === 'HAZARD') {
               setLastWarningReason(data.reason ?? 'Danger detected near baby.')
               setWarningModalOpen(true)
             }
