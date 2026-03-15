@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import toast from 'react-hot-toast'
 import { ShieldCheck, ShieldAlert, StopCircle, Trash2, Eye, Volume2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { useCamera } from '../hooks/useCamera'
 import { checkFrameForDangers } from '../api/gemini'
 
 const INTERVAL_MS = 8000
+
+const getSignalingWsUrl = () => {
+  const base = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000'
+  return `${base.replace(/^http/, 'ws')}/ws/signaling/frontend`
+}
 
 function playAlarm(volume: number) {
   try {
@@ -35,13 +38,124 @@ function sendPushNotification(message: string) {
 export default function Monitor() {
   const navigate = useNavigate()
   const { apiKey, actions, alertSettings, setIsMonitoring, eventLog, addEvent, clearEvents } = useApp()
-  const { videoRef, canvasRef, isActive, start, stop, captureFrame } = useCamera()
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const peerRef = useRef<RTCPeerConnection | null>(null)
+  const [isActive, setIsActive] = useState(false)
   const [allClear, setAllClear] = useState(true)
   const [checking, setChecking] = useState(false)
   const [currentAlerts, setCurrentAlerts] = useState<string[]>([])
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const watchList = actions.filter(a => a.enabled).map(a => a.text)
+
+  const stopStreaming = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+    if (peerRef.current) {
+      peerRef.current.close()
+      peerRef.current = null
+    }
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream
+      stream.getTracks().forEach(track => track.stop())
+      videoRef.current.srcObject = null
+    }
+    setIsActive(false)
+  }, [])
+
+  const captureFrame = useCallback((quality = 0.8): string | null => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || !isActive || video.videoWidth === 0 || video.videoHeight === 0) return null
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(video, 0, 0)
+
+    const dataUrl = canvas.toDataURL('image/jpeg', quality)
+    return dataUrl.split(',')[1] ?? null
+  }, [isActive])
+
+  const startStreaming = useCallback(() => {
+    const ws = new WebSocket(getSignalingWsUrl())
+    wsRef.current = ws
+
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    })
+    peerRef.current = pc
+    pc.addTransceiver('video', { direction: 'recvonly' })
+
+    pc.ontrack = (event) => {
+      const [stream] = event.streams
+      if (!stream || !videoRef.current) return
+      videoRef.current.srcObject = stream
+      videoRef.current.play().catch(() => { /* ignore autoplay errors */ })
+      setIsActive(true)
+      addEvent('Connected to Raspberry Pi camera stream', 'info')
+    }
+
+    pc.onicecandidate = (event) => {
+      if (!event.candidate || ws.readyState !== WebSocket.OPEN) return
+      ws.send(JSON.stringify({
+        type: 'ice-candidate',
+        candidate: event.candidate.toJSON(),
+      }))
+    }
+
+    ws.onmessage = async (event) => {
+      try {
+        const message = JSON.parse(event.data)
+
+        if (message.type === 'answer' && message.sdp) {
+          await pc.setRemoteDescription({ type: 'answer', sdp: message.sdp })
+          return
+        }
+
+        if (message.type === 'ice-candidate' && message.candidate) {
+          await pc.addIceCandidate(new RTCIceCandidate(message.candidate))
+          return
+        }
+
+        if (message.type === 'camera_disconnected') {
+          addEvent('Pi camera service disconnected', 'warning')
+          setIsActive(false)
+          return
+        }
+
+        if (message.type === 'error' && message.message) {
+          addEvent(`Signaling error: ${message.message}`, 'warning')
+        }
+      } catch {
+        addEvent('Failed to process signaling message', 'warning')
+      }
+    }
+
+    ws.onopen = async () => {
+      try {
+        ws.send(JSON.stringify({ type: 'start_video' }))
+        const offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        ws.send(JSON.stringify({ type: 'offer', sdp: offer.sdp }))
+      } catch (e) {
+        addEvent('Failed to start WebRTC stream: ' + (e instanceof Error ? e.message : 'Unknown'), 'warning')
+      }
+    }
+
+    ws.onclose = () => {
+      setIsActive(false)
+    }
+
+    ws.onerror = () => {
+      addEvent('WebSocket signaling connection failed', 'warning')
+    }
+  }, [addEvent])
 
   const checkFrame = useCallback(async () => {
     const frame = captureFrame(0.7)
@@ -76,9 +190,9 @@ export default function Monitor() {
   }, [captureFrame, apiKey, watchList, alertSettings, addEvent])
 
   useEffect(() => {
-    start()
-    return () => { stop() }
-  }, [])
+    startStreaming()
+    return () => { stopStreaming() }
+  }, [startStreaming, stopStreaming])
 
   useEffect(() => {
     if (!isActive) return
@@ -92,7 +206,7 @@ export default function Monitor() {
   }, [isActive, checkFrame])
 
   const handleStop = () => {
-    stop()
+    stopStreaming()
     if (intervalRef.current) clearInterval(intervalRef.current)
     setIsMonitoring(false)
     navigate('/alerts')
